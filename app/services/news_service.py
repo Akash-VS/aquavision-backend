@@ -18,6 +18,11 @@ from app.core.logging import logger
 
 CACHE_FILE = Path("cache/news_cache.json")
 
+CACHE_FILE.parent.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
 
 class NewsService:
 
