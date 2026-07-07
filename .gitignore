@@ -1,0 +1,26 @@
+# Virtual Environment
+venv/
+
+# Environment Variables
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Local Cache
+cache/
+
+# Uploaded Files
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+# Ignore uploaded images
+app/uploads/*
+!app/uploads/.gitkeep
