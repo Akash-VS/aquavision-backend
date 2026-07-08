@@ -16,7 +16,7 @@ class LocationService:
 
     OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-    SEARCH_RADIUS = 5000  # meters
+    SEARCH_RADIUS = 15000  # 15 KM
 
     def _distance_km(
         self,
@@ -41,7 +41,10 @@ class LocationService:
             * math.sin(d_lon / 2) ** 2
         )
 
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        c = 2 * math.atan2(
+            math.sqrt(a),
+            math.sqrt(1 - a),
+        )
 
         return round(R * c, 2)
 
@@ -54,34 +57,51 @@ class LocationService:
         logger.info("Searching nearby water bodies...")
 
         query = f"""
-        [out:json][timeout:25];
+        [out:json][timeout:30];
 
         (
+
         node["natural"="water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
         way["natural"="water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        relation["natural"="water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+
+        node["water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        way["water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        relation["water"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+
+        node["waterway"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        way["waterway"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        relation["waterway"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+
+        node["landuse"="reservoir"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        way["landuse"="reservoir"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+        relation["landuse"="reservoir"](around:{self.SEARCH_RADIUS},{latitude},{longitude});
+
         );
 
         out center;
         """
 
-        response = requests.post(
-        self.OVERPASS_URL,
-        data={"data": query},
-        headers={
-            "User-Agent": "AquaVisionAI/1.0"
-        },
-        timeout=30,
-        )
-        
-        
-        print("=" * 60)
-        print("Status:", response.status_code)
-        print(response.text)
-        print("=" * 60)
+        try:
 
-        response.raise_for_status()
+            response = requests.post(
+                self.OVERPASS_URL,
+                data={"data": query},
+                headers={
+                    "User-Agent": "AquaVisionAI/1.0"
+                },
+                timeout=30,
+            )
 
-        data = response.json()
+            response.raise_for_status()
+
+            data = response.json()
+
+        except Exception as e:
+
+            logger.exception("Failed to fetch nearby water bodies.")
+
+            raise RuntimeError(str(e))
 
         water_bodies = []
 
@@ -91,10 +111,10 @@ class LocationService:
 
             tags = item.get("tags", {})
 
-            name = tags.get("name")
-
-            if not name:
-                continue
+            name = tags.get(
+                "name",
+                "Unnamed Water Body"
+            )
 
             if name in seen:
                 continue
@@ -102,9 +122,12 @@ class LocationService:
             seen.add(name)
 
             if "center" in item:
+
                 lat = item["center"]["lat"]
                 lon = item["center"]["lon"]
+
             else:
+
                 lat = item.get("lat")
                 lon = item.get("lon")
 
@@ -115,6 +138,7 @@ class LocationService:
                 tags.get("water")
                 or tags.get("waterway")
                 or tags.get("natural")
+                or tags.get("landuse")
                 or "Water Body"
             )
 
